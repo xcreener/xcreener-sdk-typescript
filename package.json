@@ -1,0 +1,66 @@
+{
+  "name": "@xcreener/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the XCREENER XQL HTTP API",
+  "keywords": [
+    "xcreener",
+    "xql",
+    "trading",
+    "screener",
+    "market-data",
+    "stock-screener",
+    "crypto"
+  ],
+  "homepage": "https://xcreener.com/developers",
+  "bugs": {
+    "url": "https://github.com/xcreener/xcreener-sdk-typescript/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xcreener/xcreener-sdk-typescript.git"
+  },
+  "license": "MIT",
+  "author": "Andrew Magnaye",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "check:package": "publint --strict && attw --pack . --profile esm-only",
+    "version": "node scripts/sync-version.mjs && git add src/version.ts",
+    "prepublishOnly": "npm run check && npm run build && npm run check:package"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^20.19.43",
+    "publint": "^0.3.25",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

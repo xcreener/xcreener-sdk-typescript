@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false,
+    "declaration": true,
+    // Not shipped: the maps would point at src/, which is not in the tarball.
+    "sourceMap": false,
+    "declarationMap": false,
+    "paths": {}
+  },
+  "include": ["src"]
+}

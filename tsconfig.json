@@ -1,0 +1,37 @@
+{
+  // Editor and `npm run typecheck` config: covers src, tests and examples.
+  // The published build uses tsconfig.build.json, which narrows this to src.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // fetch, Headers and AbortSignal come from @types/node rather than the DOM
+    // lib, so nothing browser-only can slip into the source unnoticed.
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": ".",
+
+    // Examples import the package by name, exactly as a user would. This maps
+    // that name to the source so they typecheck without a build first.
+    "paths": {
+      "@xcreener/sdk": ["./src/index.ts"]
+    }
+  },
+  "include": ["src", "test", "examples", "vitest.config.ts"]
+}

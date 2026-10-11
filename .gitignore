@@ -1,0 +1,75 @@
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+
+# This repo uses npm. package-lock.json IS committed: it pins the dev
+# toolchain for `npm ci`, and npm never ships it in the tarball, so it imposes
+# nothing on anyone who installs the package. Lockfiles from other package
+# managers are ignored so an accidental `yarn` or `bun install` cannot commit a
+# second, conflicting one.
+yarn.lock
+pnpm-lock.yaml
+bun.lock
+bun.lockb
+.yarn/
+.pnp.*
+
+# ---------------------------------------------------------------------------
+# Build output. Published to npm, never committed.
+# ---------------------------------------------------------------------------
+dist/
+*.tsbuildinfo
+
+# `npm pack` output. The publish workflow builds its own from a clean checkout.
+*.tgz
+
+# ---------------------------------------------------------------------------
+# Test and coverage output
+# ---------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+# The client reads $XCREENER_API_KEY, so any .env in this tree is a live
+# credential. Matched broadly, with the checked-in template exempted.
+.env
+.env.*
+!.env.example
+
+# Publishing uses trusted publishing, so no npm token belongs anywhere in this
+# repo. A project-level .npmrc is where one would end up by accident.
+.npmrc
+
+*.pem
+*.key
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------------------------------------------------------------------------
+# Local tooling
+# ---------------------------------------------------------------------------
+# Per-machine Claude Code settings; not meant to be shared.
+.claude/settings.local.json
