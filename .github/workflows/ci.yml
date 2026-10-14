@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # The floor and the current lines all get exercised: `engines` promises
+    # Node 20.19 and up, so 20 runs even though it is past end of life.
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20", "22", "24"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+  lint:
+    # Version-independent, so it runs once rather than across the matrix.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `biome ci` is `biome check` without the write path, and it annotates
+      # the pull request with each finding.
+      - name: Biome
+        run: npx biome ci .
+
+      - name: Typecheck (src, tests, examples)
+        run: npm run typecheck
+
+  package:
+    # Catches packaging mistakes on every PR rather than at release time.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: publint and arethetypeswrong
+        run: npm run check:package
+
+      - name: Show what would ship
+        run: npm pack --dry-run

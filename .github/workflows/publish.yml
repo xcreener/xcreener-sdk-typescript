@@ -1,0 +1,136 @@
+name: Publish
+
+# Tag push -> npm. Manual run from the Actions tab -> everything up to a
+# `npm publish --dry-run`, which is the rehearsal path: it can never reach the
+# registry.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      tarball: ${{ steps.pack.outputs.tarball }}
+      dist-tag: ${{ steps.version.outputs.dist-tag }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The tag is the only thing a human types during a release, so it is the
+      # only thing that can disagree with the source. Fail before building.
+      - name: Check the tag matches package.json
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            tag="${GITHUB_REF_NAME#v}"
+            echo "tag=$tag package.json=$version"
+            if [ "$tag" != "$version" ]; then
+              echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+              exit 1
+            fi
+          fi
+          # A prerelease must never become `latest`, or a plain install picks it.
+          case "$version" in
+            *-*) echo "dist-tag=next" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "dist-tag=latest" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Lint, typecheck, test
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: publint and arethetypeswrong
+        run: npm run check:package
+
+      - name: Pack
+        id: pack
+        run: |
+          tarball=$(npm pack --silent)
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          tar -tzf "$tarball"
+
+      # Proves the tarball installs and imports somewhere that is not the
+      # source tree, so a file missing from `files` fails here rather than for
+      # the first user. Both module systems are exercised: ESM import, and
+      # require() of ESM, which Node 20.19+ and 22.12+ support.
+      - name: Install the tarball into an empty project
+        run: |
+          mkdir /tmp/smoke && cd /tmp/smoke
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$GITHUB_WORKSPACE/${{ steps.pack.outputs.tarball }}"
+          node --input-type=module -e "
+            import { Xcreener, VERSION } from '@xcreener/sdk';
+            new Xcreener({ apiKey: 'smoke-test' });
+            console.log('import ok', VERSION);
+          "
+          node -e "
+            const { Xcreener } = require('@xcreener/sdk');
+            new Xcreener({ apiKey: 'smoke-test' });
+            console.log('require ok');
+          "
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+
+  rehearse:
+    # The rehearsal. Manual runs stop here.
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+
+      - name: Publish (dry run)
+        run: npm publish "./${{ needs.build.outputs.tarball }}" --dry-run --provenance=false --tag "${{ needs.build.outputs.dist-tag }}"
+
+  npm:
+    # Only a tag push reaches the registry, and only after build passed.
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # trusted publishing; no npm token exists to leak
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later. Upgrading costs a few
+      # seconds and removes any dependence on what the runner image bundles.
+      - name: Upgrade npm
+        run: npm install -g npm@latest && npm --version
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+
+      # The exact tarball the build job smoke-tested, not a rebuild of it.
+      - name: Publish
+        run: npm publish "./${{ needs.build.outputs.tarball }}" --tag "${{ needs.build.outputs.dist-tag }}"
